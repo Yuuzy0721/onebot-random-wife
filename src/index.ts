@@ -1,11 +1,11 @@
 import { Context, Schema, Logger, h } from 'koishi'
-import { } from '@koishijs/cache'
+//import { } from '@koishijs/cache'
 import { } from 'koishi-plugin-adapter-onebot'
 
 export const name = 'onebot-random-wife'
 
 export const injest = {
-  required: ['database']
+//  required: ['database']
 }
 
 export interface Config {}
@@ -14,7 +14,7 @@ export const Config: Schema<Config> = Schema.object({})
 
 export function apply(ctx: Context) {
   const logger = new Logger('onebot-random-wife')
-  ctx.command('waif', '随机群老婆').action(async ({ session }) => {
+  ctx.command('wife', '随机群老婆').action(async ({ session }) => {
     if (!session?.onebot || session.subtype !== 'group') {
       return session?.send(session?.subtype === 'group' ? '仅支持 OneBot 平台！' : '请在群聊内使用！')
     }

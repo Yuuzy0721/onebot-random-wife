@@ -1,7 +1,10 @@
 {
   "name": "@yuuzy/koishi-plugin-onebot-random-wife",
   "description": "随机群老婆（仅支持OneBot适配器）",
-  "version": "0.0.1",
+  "version": "0.0.2",
+  "contributors": [
+    "yuuzy <adcb10090916@163.com>"
+  ],
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -9,10 +12,16 @@
     "dist"
   ],
   "license": "MIT",
+  "homepage": "https://github.com/Yuuzy0721/onebot-random-wife",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yuuzy0721/onebot-random-wife.git"
+  },
   "keywords": [
     "chatbot",
     "koishi",
-    "plugin"
+    "plugin",
+    "wife"
   ],
   "peerDependencies": {
     "koishi": "^4.18.7"
