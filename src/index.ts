@@ -1,12 +1,9 @@
 import { Context, Schema, Logger, h } from 'koishi'
-//import { } from '@koishijs/cache'
 import { } from 'koishi-plugin-adapter-onebot'
 
 export const name = 'onebot-random-wife'
 
-export const injest = {
-//  required: ['database']
-}
+export const injest = {}
 
 export interface Config {}
 
@@ -27,13 +24,13 @@ export function apply(ctx: Context) {
       const { user_id: userId } = members[randomIndex]
       const userIdStr = userId.toString()
 
-      const imageUrl = `http://q.qlogo.cn/headimg_dl?dst_uin=${userIdStr}&spec=640`
+      const imageUrl = `https://q1.qlogo.cn/g?b=qq&nk=${userIdStr}&s=640`
 
       await session.send([
         h('at', { id: session.userId }),
-        h.text('你的老婆是\n'),
+        '你的老婆是',
         h('at', { id: userIdStr }),
-        h.image(imageUrl, { cache: 0 }), // 强制禁用缓存
+        h.image(imageUrl),
       ])
     } catch (error) {
       logger.error('指令执行失败:', error)
