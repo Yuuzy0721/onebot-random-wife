@@ -2,7 +2,8 @@
 
 [![npm](https://img.shields.io/npm/v/@yuuzy/koishi-plugin-onebot-random-wife?style=flat-square)](https://www.npmjs.com/package/@yuuzy/koishi-plugin-onebot-random-wife)
 
-随机群老婆（仅支持OneBot适配器）
+随机群老婆（仅支持OneBot适配器）  
+如果无法正常发送消息请重载配置或更换方案（真的修不好）。
 
 # 未来计划
 
@@ -12,5 +13,4 @@
 
 # 当前问题
 
-- 无法稳定运行
-- 偶尔能用
+- 无法稳定运行(偶尔能用)(暂时已修复，偶尔出错)

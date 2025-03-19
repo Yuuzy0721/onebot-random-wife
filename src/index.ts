@@ -1,4 +1,3 @@
-import { url } from 'inspector'
 import { Context, Schema, h } from 'koishi'
 import { } from 'koishi-plugin-adapter-onebot'
 
@@ -8,10 +7,16 @@ export const injest = {}
 
 export interface Config {
     debugMode: boolean
+    Plan: 'A' | 'B' | 'C'
 }
 
 export const Config: Schema<Config> = Schema.object({
-    debugMode: Schema.boolean().default(false)//.hidden()
+    debugMode: Schema.boolean().default(false),//.hidden()
+    Plan: Schema.union([
+        Schema.const('A').description('方案1，若无法使用请更换其他方案（不推荐）'),
+        Schema.const('B').description('方案2，将消息分开发送'),
+        Schema.const('C').description('方案3，不at'),
+      ]).role('radio').default('B')
 })
 
 export function apply(ctx: Context, cfg: Config) {
@@ -41,16 +46,29 @@ export function apply(ctx: Context, cfg: Config) {
                 }
                 
                 // 发送消息
-                await session.send([
-                    h('at', {id: session.userId}),
-                    h('你的老婆是：'),
-                    h('at', {id: userIdStr}),
-                    h('img',{ url: touxiang })
-                ])
-                
-                if (cfg.debugMode === true) {
-                    await session.send(`debugMode is ON`)
-                    //await session.send(<img src="https://koishi.chat/logo.png"/>)
+                if (cfg.Plan == 'A') {
+                    await session.send([
+                        h('at', {id: session.userId}),
+                        h.text(" 你的老婆是："),
+                        h('at', {id: userIdStr}),
+                        h('image',{ url: touxiang })
+                    ])
+                }else if (cfg.Plan == 'B') {
+                    await session.send(h('at', {id: session.userId}))
+                    await session.send('你的老婆是：')
+                    await session.send(h('at', {id: userIdStr}))
+                    await session.send(h('image',{ url: touxiang }))
+                }else if (cfg.Plan == 'C') {
+                    await session.send([
+                        '你的老婆是：',
+                        h('iamge', { url: touxiang})
+                    ])
+                }else {
+                    // 防小人
+                    await session.send(h('at', {id: session.userId}))
+                    await session.send('你的老婆是：')
+                    await session.send(h('at', {id: userIdStr}))
+                    await session.send(h('image',{ url: touxiang }))
                 }
             }else {
                 await session.send('请在群聊内使用！')
