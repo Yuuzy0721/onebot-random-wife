@@ -11,7 +11,7 @@ export interface Config {
 }
 
 export const Config: Schema<Config> = Schema.object({
-    debugMode: Schema.boolean().default(false),//.hidden()
+    debugMode: Schema.boolean().default(false).hidden(),
     Plan: Schema.union([
         Schema.const('A').description('方案1，若无法使用请更换其他方案（不推荐）'),
         Schema.const('B').description('方案2，将消息分开发送'),
@@ -52,7 +52,7 @@ export function apply(ctx: Context, cfg: Config) {
                         h.text(" 你的老婆是："),
                         h('at', {id: userIdStr}),
                         h('image',{ url: touxiang })
-                    ])
+                    ].join(''))
                 }else if (cfg.Plan == 'B') {
                     await session.send(h('at', {id: session.userId}))
                     await session.send('你的老婆是：')
@@ -62,7 +62,7 @@ export function apply(ctx: Context, cfg: Config) {
                     await session.send([
                         '你的老婆是：',
                         h('iamge', { url: touxiang})
-                    ])
+                    ].join(''))
                 }else {
                     // 防小人
                     await session.send(h('at', {id: session.userId}))
