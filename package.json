@@ -1,7 +1,7 @@
 {
   "name": "@yuuzy/koishi-plugin-onebot-random-wife",
   "description": "随机群老婆（仅支持OneBot适配器），使用前请查看[README.MD](https://github.com/Yuuzy0721/onebot-random-wife)",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "contributors": [
     "yuuzy <adcb10090916@163.com>"
   ],

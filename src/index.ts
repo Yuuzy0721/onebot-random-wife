@@ -13,9 +13,9 @@ export interface Config {
 export const Config: Schema<Config> = Schema.object({
     debugMode: Schema.boolean().default(false).hidden(),
     Plan: Schema.union([
-        Schema.const('A').description('方案1，若无法使用请更换其他方案（不推荐）'),
+        Schema.const('A').description('方案1，发送混合消息'),
         Schema.const('B').description('方案2，将消息分开发送'),
-        Schema.const('C').description('方案3，不at'),
+        Schema.const('C').description('方案3，不at，只发送文本+图片混合消息'),
       ]).role('radio').default('B')
 })
 
