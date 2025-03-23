@@ -7,7 +7,7 @@ export const injest = {}
 
 export interface Config {
     debugMode: boolean
-    Plan: 'A' | 'B' | 'C'
+    Plan: 'A' | 'B'
 }
 
 export const Config: Schema<Config> = Schema.object({
@@ -15,7 +15,6 @@ export const Config: Schema<Config> = Schema.object({
     Plan: Schema.union([
         Schema.const('A').description('方案1，发送混合消息'),
         Schema.const('B').description('方案2，将消息分开发送'),
-        Schema.const('C').description('方案3，不at，只发送文本+图片混合消息'),
       ]).role('radio').default('B')
 })
 
@@ -51,24 +50,19 @@ export function apply(ctx: Context, cfg: Config) {
                         h('at', {id: session.userId}),
                         h.text(" 你的老婆是："),
                         h('at', {id: userIdStr}),
-                        h('image',{ url: touxiang })
-                    ].join(''))
+                        h('image',{ src: touxiang, caches: true })
+                    ])
                 }else if (cfg.Plan == 'B') {
                     await session.send(h('at', {id: session.userId}))
                     await session.send('你的老婆是：')
                     await session.send(h('at', {id: userIdStr}))
-                    await session.send(h('image',{ url: touxiang }))
-                }else if (cfg.Plan == 'C') {
-                    await session.send([
-                        '你的老婆是：',
-                        h('iamge', { url: touxiang})
-                    ].join(''))
+                    await session.send(h('image',{ src: touxiang, caches: true }))
                 }else {
                     // 防小人
                     await session.send(h('at', {id: session.userId}))
                     await session.send('你的老婆是：')
                     await session.send(h('at', {id: userIdStr}))
-                    await session.send(h('image',{ url: touxiang }))
+                    await session.send(h('image',{ url: touxiang, caches: true }))
                 }
             }else {
                 await session.send('请在群聊内使用！')
