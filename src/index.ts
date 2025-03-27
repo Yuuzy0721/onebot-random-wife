@@ -3,23 +3,61 @@ import { } from 'koishi-plugin-adapter-onebot'
 
 export const name = 'onebot-random-wife'
 
-export const injest = {}
+export const inject = {
+    required: ['database']
+}
 
 export interface Config {
     debugMode: boolean
     Plan: 'A' | 'B'
+    database: boolean
+    DelTime: any
 }
 
-export const Config: Schema<Config> = Schema.object({
-    debugMode: Schema.boolean().default(false).hidden(),
-    Plan: Schema.union([
-        Schema.const('A').description('方案1，发送混合消息'),
-        Schema.const('B').description('方案2，将消息分开发送'),
+export const Config: Schema<Config> = Schema.intersect([
+    Schema.object({
+       debugMode: Schema.boolean().default(false).hidden(),
+      Plan: Schema.union([
+          Schema.const('A').description('方案1，发送混合消息'),
+          Schema.const('B').description('方案2，将消息分开发送'),
       ]).role('radio').default('B')
-})
+    }).description('基础配置'),
+    Schema.object({
+        database: Schema.boolean().default(false).description('是否启用数据库限制每日只能获取一个老婆').experimental()
+    }).description('数据库配置'),
+    Schema.union([
+        Schema.object({
+            DelTime: Schema.string().default('00:00').description('每日重置时间').disabled()
+        })
+    ])
+])
+
+declare module 'koishi' {
+    interface Tables {
+        yuuzy_wife: YuuzyWife
+    }
+}
+
+export interface YuuzyWife {
+    id: number
+    userId: string
+    groupId: string
+    wife: string
+    TouXiang: string
+}
 
 export function apply(ctx: Context, cfg: Config) {
+    // 注册数据库
+    ctx.model.extend('yuuzy_wife', {
+        id: 'unsigned',
+        userId: 'string',
+        groupId: 'string',
+        wife: 'string',
+        TouXiang: 'string'
+    })
+
     const logger = ctx.logger('onebot-random-wife')
+
     ctx.command('wife', '随机群老婆').action(async ({ session }) => {
         if (session.onebot) {
             if (session.subtype === 'group') {
