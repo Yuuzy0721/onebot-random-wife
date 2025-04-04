@@ -11,7 +11,7 @@ export interface Config {
     debugMode: boolean
     Plan: 'A' | 'B'
     database: boolean
-    DelTime: any
+    DelTime?: any
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -23,13 +23,9 @@ export const Config: Schema<Config> = Schema.intersect([
       ]).role('radio').default('B')
     }).description('基础配置'),
     Schema.object({
-        database: Schema.boolean().default(false).description('是否启用数据库限制每日只能获取一个老婆').experimental()
+        database: Schema.boolean().default(false).description('是否启用数据库限制每日只能获取一个老婆').experimental(),
+        DelTime: Schema.string().default('00:00').description('每日重置时间').disabled()
     }).description('数据库配置'),
-    Schema.union([
-        Schema.object({
-            DelTime: Schema.string().default('00:00').description('每日重置时间').disabled()
-        })
-    ])
 ])
 
 declare module 'koishi' {
@@ -46,7 +42,7 @@ export interface YuuzyWife {
     TouXiang: string
 }
 
-export function apply(ctx: Context, cfg: Config) {
+export async function apply(ctx: Context, cfg: Config) {
     // 注册数据库
     ctx.model.extend('yuuzy_wife', {
         id: 'unsigned',
@@ -54,7 +50,13 @@ export function apply(ctx: Context, cfg: Config) {
         groupId: 'string',
         wife: 'string',
         TouXiang: 'string'
+    }, {
+        primary: 'id',
+        autoInc: true
     })
+
+    // 初始化数据库
+    await ctx.database.remove('yuuzy_wife', {})
 
     const logger = ctx.logger('onebot-random-wife')
 
