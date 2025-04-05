@@ -1,30 +1,33 @@
 import { Context, Schema, h } from 'koishi'
+import { } from 'koishi-plugin-cron'
 import { } from 'koishi-plugin-adapter-onebot'
 
 export const name = 'onebot-random-wife'
 
+export const usage = `# 请自行为wife.rm指令添加权限限制`
+
 export const inject = {
-    required: ['database']
+    required: ['database', 'cron']
 }
 
 export interface Config {
-    debugMode: boolean
     Plan: 'A' | 'B'
     database: boolean
     DelTime?: any
+    init: boolean
 }
 
 export const Config: Schema<Config> = Schema.intersect([
     Schema.object({
-       debugMode: Schema.boolean().default(false).hidden(),
       Plan: Schema.union([
           Schema.const('A').description('方案1，发送混合消息'),
           Schema.const('B').description('方案2，将消息分开发送'),
-      ]).role('radio').default('B')
+      ]).role('radio').default('A').deprecated().disabled(),
     }).description('基础配置'),
     Schema.object({
         database: Schema.boolean().default(false).description('是否启用数据库限制每日只能获取一个老婆').experimental(),
-        DelTime: Schema.string().default('00:00').description('每日重置时间').disabled()
+        DelTime: Schema.string().default('00:00').description('每日重置数据库时间（这条配置项只是给你看的，修改它并不会有任何影响）').disabled(),
+        init: Schema.boolean().default(true).description('是否在启用（重载）插件时清空数据库'),
     }).description('数据库配置'),
 ])
 
@@ -39,77 +42,103 @@ export interface YuuzyWife {
     userId: string
     groupId: string
     wife: string
-    TouXiang: string
 }
 
 export async function apply(ctx: Context, cfg: Config) {
+    const logger = ctx.logger('onebot-random-wife')
+    // 还能优化，但是能跑就行^^
+
     // 注册数据库
     ctx.model.extend('yuuzy_wife', {
         id: 'unsigned',
         userId: 'string',
         groupId: 'string',
-        wife: 'string',
-        TouXiang: 'string'
+        wife: 'string'
     }, {
         primary: 'id',
         autoInc: true
     })
 
     // 初始化数据库
-    await ctx.database.remove('yuuzy_wife', {})
-
-    const logger = ctx.logger('onebot-random-wife')
+    if (cfg.init) {
+        logger.info('正在清空数据库...')
+        await ctx.database.remove('yuuzy_wife', {})
+        logger.info('数据库清空完成！')
+    }
 
     ctx.command('wife', '随机群老婆').action(async ({ session }) => {
         if (session.onebot) {
             if (session.subtype === 'group') {
                 // 获取各种信息
-                let groupid = session.channelId       // 群号
-                let members = await session.onebot.getGroupMemberList(groupid)        // 成员
+                let groupId = session.channelId       // 群号
+                let members = await session.onebot.getGroupMemberList(groupId)        // 成员
             
                 do{
                     //  随机成员
                     var randomIndex = Math.floor(Math.random() * members.length)
                     var wife = members[randomIndex]
                 }while (wife.user_id.toString() === session.userId)
-                let userId = wife.user_id
-                let userIdStr = userId.toString()
+                let wifeId = wife.user_id.toString()
 
                 // 获取头像
-                let touxiang = `https://q1.qlogo.cn/g?b=qq&nk=${userIdStr}&s=640`
+                let touxiang = `https://q1.qlogo.cn/g?b=qq&nk=${wifeId}&s=640`
 
-                if (cfg.debugMode === true) {
-                    logger.info(members[randomIndex])
-                    logger.info(userIdStr)
-                    logger.info(touxiang)
-                }
-                
-                // 发送消息
-                if (cfg.Plan == 'A') {
+                // debug
+                // logger.info(await ctx.database.get('yuuzy_wife', {userId: session.userId, groupId: groupId}))
+
+                if (!cfg.database) {
+                    // 直接发送消息
                     await session.send([
                         h('at', {id: session.userId}),
                         h.text(" 你的老婆是："),
-                        h('at', {id: userIdStr}),
+                        h('at', {id: wifeId}),
                         h('image',{ src: touxiang, caches: true })
                     ])
-                }else if (cfg.Plan == 'B') {
-                    await session.send(h('at', {id: session.userId}))
-                    await session.send('你的老婆是：')
-                    await session.send(h('at', {id: userIdStr}))
-                    await session.send(h('image',{ src: touxiang, caches: true }))
-                }else {
-                    // 防小人
-                    await session.send(h('at', {id: session.userId}))
-                    await session.send('你的老婆是：')
-                    await session.send(h('at', {id: userIdStr}))
-                    await session.send(h('image',{ url: touxiang, caches: true }))
+                }else if (cfg.database) {       // 意义不明
+                    let get = await ctx.database.get('yuuzy_wife', {userId: session.userId, groupId: groupId})
+                    if (get.length > 0) {
+                        wifeId = get[0].wife
+                        touxiang = `https://q1.qlogo.cn/g?b=qq&nk=${wifeId}&s=640`
+                        await session.send([
+                            h('at', {id: session.userId}),
+                            h.text(" 你今天已经获取过老婆了！\n你的老婆是："),
+                            h('at', {id: wifeId}),
+                            h('image',{ src: touxiang, caches: true })
+                        ])
+                    }else {
+                        // 插入数据库
+                        await ctx.database.create('yuuzy_wife', {userId: session.userId, groupId: groupId, wife: wifeId})
+                        await session.send([
+                            h('at', {id: session.userId}),
+                            h.text(" 你的老婆是："),
+                            h('at', {id: wifeId}),
+                            h('image',{ src: touxiang, caches: true })
+                        ])
+                    }
                 }
             }else {
                 await session.send('请在群聊内使用！')
             }
         }else {
             await session.send('仅支持 OneBot 平台！')
+        }  
+    })
+    ctx.command('wife.rm', '清除数据库').action(async ({session}) => {
+        if (cfg.database) {
+            await ctx.database.remove('yuuzy_wife', {})
+            await session.send('数据库已清空。')
+        }else {
+            await session.send('数据库未启用。')
         }
-        
+    })
+    /**ctx.command('wife.debug').action(async ({ session }) => {
+    *    let a = await ctx.database.get('yuuzy_wife', {userId: session.userId})
+    *    logger.info(a)
+    *})
+    */
+    ctx.cron('0 0 * * *', async () => {
+        logger.info('正在执行定时清空数据库...')
+        await ctx.database.remove('yuuzy_wife', {})
+        logger.info('数据库清空完成！')
     })
 }
