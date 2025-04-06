@@ -90,7 +90,7 @@ export async function apply(ctx: Context, cfg: Config) {
                     // 直接发送消息
                     await session.send([
                         h('at', {id: session.userId}),
-                        h.text(" 你今天的老婆是："),
+                        h.text(" 你的老婆是："),
                         h('at', {id: wifeId}),
                         h('image',{ src: touxiang, caches: true })
                     ])
@@ -110,7 +110,7 @@ export async function apply(ctx: Context, cfg: Config) {
                         await ctx.database.create('yuuzy_wife', {userId: session.userId, groupId: groupId, wife: wifeId})
                         await session.send([
                             h('at', {id: session.userId}),
-                            h.text(" 你的老婆是："),
+                            h.text(" 你今天的老婆是："),
                             h('at', {id: wifeId}),
                             h('image',{ src: touxiang, caches: true })
                         ])
