@@ -66,7 +66,9 @@ export async function apply(ctx: Context, cfg: Config) {
         logger.info('数据库清空完成！')
     }
 
-    ctx.command('wife', '随机群老婆').action(async ({ session }) => {
+    ctx.command('wife', '随机群老婆')
+    .option('noat', '-n 不at对方')
+    .action(async ({ session, options }) => {
         if (session.onebot) {
             if (session.subtype === 'group') {
                 // 获取各种信息
@@ -88,32 +90,56 @@ export async function apply(ctx: Context, cfg: Config) {
 
                 if (!cfg.database) {
                     // 直接发送消息
-                    await session.send([
-                        h('at', {id: session.userId}),
-                        h.text(" 你的老婆是："),
-                        h('at', {id: wifeId}),
-                        h('image',{ src: touxiang, caches: true })
-                    ])
+                    if (options.noat) {
+                        await session.send([
+                            h('at', {id: session.userId}),
+                            h.text(" 你的老婆是："),
+                            h('image',{ src: touxiang, caches: true })
+                        ])
+                    }else {
+                        await session.send([
+                            h('at', {id: session.userId}),
+                            h.text(" 你的老婆是："),
+                            h('at', {id: wifeId}),
+                            h('image',{ src: touxiang, caches: true })
+                        ])
+                    } 
                 }else if (cfg.database) {       // 意义不明
                     let get = await ctx.database.get('yuuzy_wife', {userId: session.userId, groupId: groupId})
                     if (get.length > 0) {
                         wifeId = get[0].wife
                         touxiang = `https://q1.qlogo.cn/g?b=qq&nk=${wifeId}&s=640`
-                        await session.send([
-                            h('at', {id: session.userId}),
-                            h.text(" 你今天已经获取过老婆了！\n你的老婆是："),
-                            h('at', {id: wifeId}),
-                            h('image',{ src: touxiang, caches: true })
-                        ])
+                        if (options.noat) {
+                            await session.send([
+                                h('at', {id: session.userId}),
+                                h.text(" 你今天已经获取过老婆了！\n你的老婆是："),
+                                h('image',{ src: touxiang, caches: true })
+                            ])
+                        }else {
+                            await session.send([
+                                h('at', {id: session.userId}),
+                               h.text(" 你今天已经获取过老婆了！\n你的老婆是："),
+                                h('at', {id: wifeId}),
+                                h('image',{ src: touxiang, caches: true })
+                            ])
+                        }
                     }else {
                         // 插入数据库
                         await ctx.database.create('yuuzy_wife', {userId: session.userId, groupId: groupId, wife: wifeId})
-                        await session.send([
-                            h('at', {id: session.userId}),
-                            h.text(" 你今天的老婆是："),
-                            h('at', {id: wifeId}),
-                            h('image',{ src: touxiang, caches: true })
-                        ])
+                        if (options.noat) {
+                            await session.send([
+                                h('at', {id: session.userId}),
+                                h.text(" 你今天的老婆是："),
+                                h('image',{ src: touxiang, caches: true })
+                            ])
+                        }else {
+                            await session.send([
+                                h('at', {id: session.userId}),
+                                h.text(" 你今天的老婆是："),
+                                h('at', {id: wifeId}),
+                                h('image',{ src: touxiang, caches: true })
+                            ])
+                        }
                     }
                 }
             }else {
@@ -131,11 +157,8 @@ export async function apply(ctx: Context, cfg: Config) {
             await session.send('数据库未启用。')
         }
     })
-    /**ctx.command('wife.debug').action(async ({ session }) => {
-    *    let a = await ctx.database.get('yuuzy_wife', {userId: session.userId})
-    *    logger.info(a)
-    *})
-    */
+
+    // 定时清空数据库
     ctx.cron('0 0 * * *', async () => {
         logger.info('正在执行定时清空数据库...')
         await ctx.database.remove('yuuzy_wife', {})
