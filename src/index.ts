@@ -27,7 +27,7 @@ export const Config: Schema<Config> = Schema.intersect([
     Schema.object({
         database: Schema.boolean().default(false).description('是否启用数据库限制每日只能获取一个老婆').experimental(),
         DelTime: Schema.string().default('00:00').description('每日重置数据库时间（这条配置项只是给你看的，修改它并不会有任何影响）').disabled(),
-        init: Schema.boolean().default(true).description('是否在启用（重载）插件时清空数据库'),
+        init: Schema.boolean().default(false).description('是否在启用（重载）插件时清空数据库'),
     }).description('数据库配置'),
 ])
 
@@ -149,6 +149,8 @@ export async function apply(ctx: Context, cfg: Config) {
             await session.send('仅支持 OneBot 平台！')
         }  
     })
+
+    // 清除数据库指令
     ctx.command('wife.rm', '清除数据库').action(async ({session}) => {
         if (cfg.database) {
             await ctx.database.remove('yuuzy_wife', {})
