@@ -1,20 +1,21 @@
 import { Context, Schema, h } from 'koishi'
 import { } from 'koishi-plugin-cron'
 import { } from 'koishi-plugin-adapter-onebot'
+import { } from 'koishi-plugin-monetary'
 
 export const name = 'onebot-random-wife'
 
-export const usage = `# 请自行为wife.rm指令添加权限限制`
+export const usage = ``
 
-export const inject = {
-    required: ['database', 'cron']
-}
+export const inject = ['database', 'cron', 'monetary']
 
 export interface Config {
     Plan: 'A' | 'B'
     database: boolean
     DelTime?: any
     init: boolean
+    gain: number
+    currency: string
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -22,13 +23,17 @@ export const Config: Schema<Config> = Schema.intersect([
       Plan: Schema.union([
           Schema.const('A').description('方案1，发送混合消息'),
           Schema.const('B').description('方案2，将消息分开发送'),
-      ]).role('radio').default('A').deprecated().disabled(),
+        ]).role('radio').default('A').deprecated().disabled(),
     }).description('基础配置'),
     Schema.object({
-        database: Schema.boolean().default(false).description('是否启用数据库限制每日只能获取一个老婆').experimental(),
+        database: Schema.boolean().default(true).description('是否启用数据库限制每日只能获取一个老婆'),
         DelTime: Schema.string().default('00:00').description('每日重置数据库时间（这条配置项只是给你看的，修改它并不会有任何影响）').disabled(),
         init: Schema.boolean().default(false).description('是否在启用（重载）插件时清空数据库'),
     }).description('数据库配置'),
+    Schema.object({
+        currency: Schema.string().default('default').description('monetary 的 currency 字段'),
+        gain: Schema.number().default(20).description('增加/消耗的货币数量'),
+    }).description('货币配置'),
 ])
 
 declare module 'koishi' {
@@ -45,6 +50,8 @@ export interface YuuzyWife {
 }
 
 export async function apply(ctx: Context, cfg: Config) {
+    const currency = cfg.currency
+    const gain = cfg.gain
     const logger = ctx.logger('onebot-random-wife')
     // 还能优化，但是能跑就行^^
 
@@ -72,6 +79,7 @@ export async function apply(ctx: Context, cfg: Config) {
         if (session.onebot) {
             if (session.subtype === 'group') {
                 // 获取各种信息
+                const uid = Number(session.userId)
                 let groupId = session.channelId       // 群号
                 let members = await session.onebot.getGroupMemberList(groupId)        // 成员
             
@@ -96,6 +104,13 @@ export async function apply(ctx: Context, cfg: Config) {
                             h.text(" 你的老婆是："),
                             h('image',{ src: touxiang, caches: true })
                         ])
+                        // 添加货币
+                        try {
+                            ctx.monetary.gain(uid, gain, currency)
+                            await session.send(`你获得了${gain}个货币。`)
+                        }catch (error) {
+                            await session.send(`发生未知错误。`)
+                        }
                     }else {
                         await session.send([
                             h('at', {id: session.userId}),
@@ -103,6 +118,13 @@ export async function apply(ctx: Context, cfg: Config) {
                             h('at', {id: wifeId}),
                             h('image',{ src: touxiang, caches: true })
                         ])
+                        // 添加货币
+                        try {
+                            ctx.monetary.gain(uid, gain, currency)
+                            await session.send(`你获得了${gain}个货币。`)
+                        }catch (error) {
+                            await session.send(`发生未知错误。`)
+                        }
                     } 
                 }else if (cfg.database) {       // 意义不明
                     let get = await ctx.database.get('yuuzy_wife', {userId: session.userId, groupId: groupId})
@@ -132,6 +154,13 @@ export async function apply(ctx: Context, cfg: Config) {
                                 h.text(" 你今天的老婆是："),
                                 h('image',{ src: touxiang, caches: true })
                             ])
+                            // 添加货币
+                            try {
+                                ctx.monetary.gain(uid, gain, currency)
+                                await session.send(`你获得了${gain}个货币。`)
+                            }catch (error) {
+                                await session.send(`发生未知错误。`)
+                            }
                         }else {
                             await session.send([
                                 h('at', {id: session.userId}),
@@ -139,6 +168,13 @@ export async function apply(ctx: Context, cfg: Config) {
                                 h('at', {id: wifeId}),
                                 h('image',{ src: touxiang, caches: true })
                             ])
+                            // 添加货币
+                            try {
+                                ctx.monetary.gain(uid, gain, currency)
+                                await session.send(`你获得了${gain}个货币。`)
+                            }catch (error) {
+                                await session.send(`发生未知错误。`)
+                            }
                         }
                     }
                 }
@@ -151,7 +187,7 @@ export async function apply(ctx: Context, cfg: Config) {
     })
 
     // 清除数据库指令
-    ctx.command('wife.rm', '清除数据库').action(async ({session}) => {
+    ctx.command('wife.rm', '清除数据库', { authority: 3 }).action(async ({session}) => {
         if (cfg.database) {
             await ctx.database.remove('yuuzy_wife', {})
             await session.send('数据库已清空。')
@@ -160,10 +196,43 @@ export async function apply(ctx: Context, cfg: Config) {
         }
     })
 
-    // 定时清空数据库
-    ctx.cron('0 0 * * *', async () => {
-        logger.info('正在执行定时清空数据库...')
-        await ctx.database.remove('yuuzy_wife', {})
-        logger.info('数据库清空完成！')
+    // 离婚指令
+    ctx.command('wife.离婚', '和你今天的老婆离婚').action(async ({session}) => {
+        if (session.onebot) {
+            if (session.subtype === 'group') {
+                if (cfg.database) {
+                    const groupId = session.channelId
+                    const userId = session.userId
+                    const uid = Number(userId)
+                    const get = await ctx.database.get('yuuzy_wife', {userId: userId, groupId: groupId})
+                    if (get.length > 0) {
+                        try {
+                            await ctx.monetary.cost(uid, 20, currency)
+                            await ctx.database.remove('yuuzy_wife', {userId: userId, groupId: groupId})
+                            await session.send(`离婚成功！\n你消耗了${gain}个货币。`)
+                        }catch (error) {
+                            await session.send('离婚失败！\n可能是因为你没有足够的货币。')
+                        }
+                    }else {
+                        await session.send('你还没有老婆,快点娶一个吧！')
+                    }
+                }else {
+                    await session.send('数据库未启用。')
+                }
+            }else {
+                await session.send('请在群聊内使用！')
+            }
+        }else {
+            await session.send('仅支持 OneBot 平台！')
+        }
     })
+
+    // 定时清空数据库
+    if (cfg.database) {
+        ctx.cron('0 0 * * *', async () => {
+            logger.info('正在执行定时清空数据库...')
+            await ctx.database.remove('yuuzy_wife', {})
+            logger.info('数据库清空完成！')
+        })
+    }
 }
