@@ -17,6 +17,7 @@ export interface Config {
     gain: number
     currency: string
     divorce: boolean
+    blacklist: string[]
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -25,7 +26,8 @@ export const Config: Schema<Config> = Schema.intersect([
           Schema.const('A').description('方案1，发送混合消息'),
           Schema.const('B').description('方案2，将消息分开发送'),
         ]).role('radio').default('A').deprecated().disabled(),
-        divorce: Schema.boolean().default(true).description('是否启用离婚功能').experimental(),
+        divorce: Schema.boolean().default(true).description('是否启用离婚功能（需要先启用数据库）').experimental(),
+        blacklist: Schema.array(String).description('黑名单，黑名单内的用户不会作为老婆被抽到（填写QQ号）').experimental(),
     }).description('基础配置'),
     Schema.object({
         database: Schema.boolean().default(true).description('是否启用数据库限制每日只能获取一个老婆'),
@@ -56,6 +58,7 @@ export async function apply(ctx: Context, cfg: Config) {
     const gain = cfg.gain
     const logger = ctx.logger('onebot-random-wife')
     // 还能优化，但是能跑就行^^
+    // 现在已经不知道该怎么优化了QAQ
 
     // 注册数据库
     ctx.model.extend('yuuzy_wife', {
@@ -81,15 +84,16 @@ export async function apply(ctx: Context, cfg: Config) {
         if (session.onebot) {
             if (session.subtype === 'group') {
                 // 获取各种信息
+                const blacklist = new Set(cfg.blacklist)
                 const uid = Number(session.userId)
-                let groupId = session.channelId       // 群号
-                let members = await session.onebot.getGroupMemberList(groupId)        // 成员
+                const groupId = session.channelId       // 群号
+                const members = await session.onebot.getGroupMemberList(groupId)        // 成员
             
                 do{
                     //  随机成员
                     var randomIndex = Math.floor(Math.random() * members.length)
                     var wife = members[randomIndex]
-                }while (wife.user_id.toString() === session.userId)
+                }while (wife.user_id.toString() === session.userId && blacklist.has(wife.user_id.toString())) 
                 let wifeId = wife.user_id.toString()
 
                 // 获取头像
@@ -199,28 +203,24 @@ export async function apply(ctx: Context, cfg: Config) {
     })
 
     // 离婚指令
-    if (cfg.divorce) {
+    if (cfg.divorce && cfg.database) {
         ctx.command('wife.离婚', '和你今天的老婆离婚').action(async ({session}) => {
             if (session.onebot) {
                 if (session.subtype === 'group') {
-                    if (cfg.database) {
-                        const groupId = session.channelId
-                        const userId = session.userId
-                        const uid = Number(userId)
-                        const get = await ctx.database.get('yuuzy_wife', {userId: userId, groupId: groupId})
-                        if (get.length > 0) {
-                            try {
-                                await ctx.monetary.cost(uid, 20, currency)
-                                await ctx.database.remove('yuuzy_wife', {userId: userId, groupId: groupId})
-                                await session.send(`离婚成功！\n你消耗了${gain}个货币。`)
-                            }catch (error) {
-                                await session.send('离婚失败！\n可能是因为你没有足够的货币。')
-                            }
-                        }else {
-                            await session.send('你还没有老婆,快点娶一个吧！')
+                    const groupId = session.channelId
+                    const userId = session.userId
+                    const uid = Number(userId)
+                    const get = await ctx.database.get('yuuzy_wife', {userId: userId, groupId: groupId})
+                    if (get.length > 0) {
+                        try {
+                            await ctx.monetary.cost(uid, 20, currency)
+                            await ctx.database.remove('yuuzy_wife', {userId: userId, groupId: groupId})
+                            await session.send(`离婚成功！\n你消耗了${gain}个货币。`)
+                        }catch (error) {
+                            await session.send('离婚失败！\n可能是因为你没有足够的货币。')
                         }
                     }else {
-                        await session.send('数据库未启用。')
+                        await session.send('你还没有老婆,快点娶一个吧！')
                     }
                 }else {
                  await session.send('请在群聊内使用！')
