@@ -27,7 +27,7 @@ export const Config: Schema<Config> = Schema.intersect([
           Schema.const('B').description('方案2，将消息分开发送'),
         ]).role('radio').default('A').deprecated().disabled(),
         divorce: Schema.boolean().default(true).description('是否启用离婚功能（需要先启用数据库）').experimental(),
-        blacklist: Schema.array(String).description('黑名单，黑名单内的用户不会作为老婆被抽到（填写QQ号）').experimental().default(["2854196310"]),
+        blacklist: Schema.array(String).description('黑名单，黑名单内的用户不会作为老婆被抽到（填写QQ号）（默认屏蔽Q群管家）').experimental().default(["2854196310"]),
     }).description('基础配置'),
     Schema.object({
         database: Schema.boolean().default(true).description('是否启用数据库限制每日只能获取一个老婆'),
