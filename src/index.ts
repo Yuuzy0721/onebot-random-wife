@@ -5,7 +5,11 @@ import { } from 'koishi-plugin-monetary'
 
 export const name = 'onebot-random-wife'
 
-export const usage = ``
+export const usage = `
+<p style="font-size: 36px;"><strong>由于monetary相关内容发生变动，若你从<b>0.1.6</b>版本以下更新而来，请将数据库<b>monetary</b>表中uid为QQ号的内容删除</strong></p>
+
+## [点我查看更新日志](https://forum.koishi.xyz/t/topic/10767/)
+`
 
 export const inject = ['database', 'cron', 'monetary']
 
@@ -39,8 +43,8 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     monetary: Schema.boolean().default(true).description('是否启用货币系统（需要先启用数据库）').experimental(),
     currency: Schema.string().default('default').description('monetary 的 currency 字段'),
-    add: Schema.number().default(20).description('增加的货币数量'),
-    cost: Schema.number().default(20).description('离婚需要消耗的货币数量'),
+    add: Schema.number().default(100).description('增加的货币数量'),
+    cost: Schema.number().default(150).description('离婚需要消耗的货币数量'),
   }).description('货币配置'),
 ])
 
@@ -85,13 +89,14 @@ export async function apply(ctx: Context, cfg: Config) {
   }
 
   ctx.command('wife', '随机群老婆')
+    .userFields(['id'])
     .option('noat', '-n 不at对方')
     .action(async ({ session, options }) => {
       if (session.onebot) {
         if (session.subtype === 'group') {
           const blacklist = new Set(cfg.blacklist)
           // 获取各种信息
-          const uid = Number(session.userId)
+          const uid = session.user.id
           let groupId = session.channelId       // 群号
           let members = await session.onebot.getGroupMemberList(groupId)        // 成员
 
@@ -198,12 +203,12 @@ export async function apply(ctx: Context, cfg: Config) {
 
   // 离婚指令
   if (cfg.divorce && cfg.database) {
-    ctx.command('wife.离婚', '和你今天的老婆离婚').action(async ({ session }) => {
+    ctx.command('wife.离婚', '和你今天的老婆离婚').userFields(['id']).action(async ({ session }) => {
       if (session.onebot) {
         if (session.subtype === 'group') {
           const groupId = session.channelId
           const userId = session.userId
-          const uid = Number(userId)
+          const uid = session.user.id
           const get = await ctx.database.get('yuuzy_wife', { userId: userId, groupId: groupId })
           if (get.length > 0) {
             if (!cfg.monetary) {
