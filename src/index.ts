@@ -14,10 +14,12 @@ export interface Config {
   database: boolean
   DelTime?: any
   init: boolean
-  gain: number
+  add: number
+  cost: number
   currency: string
   divorce: boolean
   blacklist: string[]
+  monetary: boolean
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -35,8 +37,10 @@ export const Config: Schema<Config> = Schema.intersect([
     init: Schema.boolean().default(false).description('是否在启用（重载）插件时清空数据库'),
   }).description('数据库配置'),
   Schema.object({
+    monetary: Schema.boolean().default(true).description('是否启用货币系统（需要先启用数据库）').experimental(),
     currency: Schema.string().default('default').description('monetary 的 currency 字段'),
-    gain: Schema.number().default(20).description('增加/消耗的货币数量'),
+    add: Schema.number().default(20).description('增加的货币数量'),
+    cost: Schema.number().default(20).description('离婚需要消耗的货币数量'),
   }).description('货币配置'),
 ])
 
@@ -55,9 +59,12 @@ export interface YuuzyWife {
 
 export async function apply(ctx: Context, cfg: Config) {
   const currency = cfg.currency
-  const gain = cfg.gain
+  const add = cfg.add
+  const cost = cfg.cost
   const logger = ctx.logger('onebot-random-wife')
   // 还能优化，但是能跑就行^^
+
+  // 优化不了力QAQ
 
   // 注册数据库
   ctx.model.extend('yuuzy_wife', {
@@ -109,13 +116,6 @@ export async function apply(ctx: Context, cfg: Config) {
                 h.text(" 你的老婆是："),
                 h('image', { src: touxiang, caches: true })
               ])
-              // 添加货币
-              try {
-                ctx.monetary.gain(uid, gain, currency)
-                await session.send(`你获得了${gain}个货币。`)
-              } catch (error) {
-                await session.send(`发生未知错误。`)
-              }
             } else {
               await session.send([
                 h('at', { id: session.userId }),
@@ -123,13 +123,6 @@ export async function apply(ctx: Context, cfg: Config) {
                 h('at', { id: wifeId }),
                 h('image', { src: touxiang, caches: true })
               ])
-              // 添加货币
-              try {
-                ctx.monetary.gain(uid, gain, currency)
-                await session.send(`你获得了${gain}个货币。`)
-              } catch (error) {
-                await session.send(`发生未知错误。`)
-              }
             }
           } else if (cfg.database) {       // 意义不明
             let get = await ctx.database.get('yuuzy_wife', { userId: session.userId, groupId: groupId })
@@ -159,10 +152,11 @@ export async function apply(ctx: Context, cfg: Config) {
                   h.text(" 你今天的老婆是："),
                   h('image', { src: touxiang, caches: true })
                 ])
+                if (!cfg.monetary) return
                 // 添加货币
                 try {
-                  ctx.monetary.gain(uid, gain, currency)
-                  await session.send(`你获得了${gain}个货币。`)
+                  ctx.monetary.gain(uid, add, currency)
+                  await session.send(`你获得了${add}个货币。`)
                 } catch (error) {
                   await session.send(`发生未知错误。`)
                 }
@@ -173,10 +167,11 @@ export async function apply(ctx: Context, cfg: Config) {
                   h('at', { id: wifeId }),
                   h('image', { src: touxiang, caches: true })
                 ])
+                if (!cfg.monetary) return
                 // 添加货币
                 try {
-                  ctx.monetary.gain(uid, gain, currency)
-                  await session.send(`你获得了${gain}个货币。`)
+                  ctx.monetary.gain(uid, add, currency)
+                  await session.send(`你获得了${add}个货币。`)
                 } catch (error) {
                   await session.send(`发生未知错误。`)
                 }
@@ -211,10 +206,15 @@ export async function apply(ctx: Context, cfg: Config) {
           const uid = Number(userId)
           const get = await ctx.database.get('yuuzy_wife', { userId: userId, groupId: groupId })
           if (get.length > 0) {
-            try {
-              await ctx.monetary.cost(uid, 20, currency)
+            if (!cfg.monetary) {
               await ctx.database.remove('yuuzy_wife', { userId: userId, groupId: groupId })
-              await session.send(`离婚成功！\n你消耗了${gain}个货币。`)
+              await session.send('离婚成功！')
+              return
+            }
+            try {
+              await ctx.monetary.cost(uid, cost, currency)
+              await ctx.database.remove('yuuzy_wife', { userId: userId, groupId: groupId })
+              await session.send(`离婚成功！\n你消耗了${cost}个货币。`)
             } catch (error) {
               await session.send('离婚失败！\n可能是因为你没有足够的货币。')
             }
