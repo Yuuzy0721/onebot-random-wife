@@ -260,7 +260,7 @@ export async function apply(ctx: Context, cfg: Config) {
     })
   }
 
-  // 求婚（先挖坑）
+  // 求婚
   if (cfg.propose && cfg.database && cfg.monetary) {
     ctx.command('求婚 <target>', '向群u求婚')
     .userFields(['id'])
@@ -275,7 +275,7 @@ export async function apply(ctx: Context, cfg: Config) {
       const uid = session.user.id
       const p = h.parse(target)[0]
       if (!p || p.type !== 'at' || !p.attrs.id) {
-        await session.send('ERROR: 懒得写详细信息，正式版补上')
+        await session.send('ERROR: 请传入正确参数\n参数需为 @某人')
         return
       }
       const pId = p.attrs.id
@@ -345,7 +345,7 @@ export async function apply(ctx: Context, cfg: Config) {
       const groupId = session.channelId
       const w = h.parse(who)[0]
       if (!w || w.type !== 'at' || !w.attrs.id) {
-        await session.send('ERROR: 懒得写详细信息，正式版补上')
+        await session.send('ERROR: 请传入正确参数\n参数需为 @某人')
         return
       }
       const wId = w.attrs.id
@@ -398,7 +398,7 @@ export async function apply(ctx: Context, cfg: Config) {
       const groupId = session.channelId
       const w = h.parse(who)[0]
       if (!w || w.type !== 'at' || !w.attrs.id) {
-        await session.send('ERROR: 懒得写详细信息，正式版补上')
+        await session.send('ERROR: 请传入正确参数\n参数需为 @某人')
         return
       }
       const wId = w.attrs.id
@@ -453,11 +453,12 @@ export async function apply(ctx: Context, cfg: Config) {
   /*ctx.command('debug', '调试指令')
   .userFields(['id'])
   .action( async ({session}) => {
-    const uid = session.user.id
-    await ctx.monetary.gain(uid, 1000, currency)
-    const get = await ctx.cache.get('YZC', '925704651')
-    await session.send(get)
-    logger.info(get)
+    await ctx.cache.set('YZC', 't', 't1', 100000)
+    await ctx.cache.set('YZC', 't', 't2', 100000)
+    await ctx.cache.set('YZC', 't', 't3', 100000)
+    await ctx.cache.set('YZC', 't', 't4', 100000)
+    const g = await ctx.cache.get('YZC', 't')
+    console.log(g)
   })*/
 
   // 定时清空数据库
