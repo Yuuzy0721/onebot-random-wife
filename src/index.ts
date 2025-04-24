@@ -65,7 +65,7 @@ export interface YuuzyWife {
 
 declare module '@koishijs/cache' {
   interface Tables {
-    YZC: string
+    YZC: string[]
   }
 }
 
@@ -262,9 +262,9 @@ export async function apply(ctx: Context, cfg: Config) {
 
   // 求婚
   if (cfg.propose && cfg.database && cfg.monetary) {
-    ctx.command('求婚 <target>', '向群u求婚')
+    ctx.command('求婚 <who>', '向群u求婚')
     .userFields(['id'])
-    .action(async ({ session }, target) => {
+    .action(async ({ session }, who) => {
       if (!session.onebot || session.subtype !== 'group') {
         await session.send('请在OneBot平台的群聊内使用。')
         return
@@ -273,7 +273,7 @@ export async function apply(ctx: Context, cfg: Config) {
       // 获取各种杂七杂八的信息
       const userId = session.userId
       const uid = session.user.id
-      const p = h.parse(target)[0]
+      const p = h.parse(who)[0]
       if (!p || p.type !== 'at' || !p.attrs.id) {
         await session.send('ERROR: 请传入正确参数\n参数需为 @某人')
         return
@@ -282,8 +282,8 @@ export async function apply(ctx: Context, cfg: Config) {
       /*console.info(p)*/
       const groupId = session.channelId
       const get = await ctx.database.get('yuuzy_wife', { userId: userId, groupId: groupId })
-      const aInfo = `${userId}&${groupId}`
-      const get2 = await ctx.cache.get('YZC', aInfo)
+      const info = `${pId}@${groupId}`
+      const get2 = await ctx.cache.get('YZC', info)
 
       if (userId === pId) {
         await session.send('你不能向自己求婚！')
@@ -293,9 +293,13 @@ export async function apply(ctx: Context, cfg: Config) {
         await session.send('你已经有老婆了，不能再求婚了！')
         return
       }
-      if (get2 !== undefined) {
+      /*if (get2 !== undefined) {
         await session.send(`你已经求过婚了，请等待对方回复。`)
-        /*console.info(get2)*/
+        return
+      }*/
+      const b = new Set(get2)
+      if (b.has(userId)) {
+        await session.send('你已经向ta求过婚了，请等待对方回复。')
         return
       }
 
@@ -306,8 +310,10 @@ export async function apply(ctx: Context, cfg: Config) {
         await session.send('求婚失败！\n可能是因为你没有足够的货币。')
         return
       }
-      await ctx.cache.set('YZC', aInfo, pId, cfg.PwaitTime)
-      await ctx.cache.set('YZC', pId, aInfo, cfg.PwaitTime)
+      let set = get2
+      if (set === undefined) set = []
+      set.push(userId)
+      await ctx.cache.set('YZC', info, set, cfg.PwaitTime)
       await session.send([
         h('at', { id: userId}),
         ' 你向',
@@ -332,6 +338,7 @@ export async function apply(ctx: Context, cfg: Config) {
     })
 
     ctx.command('求婚.同意 <who>', '同意某人的求婚')
+    .alias('同意')
     .userFields(['id'])
     .action(async ({ session }, who) => {
       if (!session.onebot || session.subtype !== 'group') {
@@ -349,34 +356,30 @@ export async function apply(ctx: Context, cfg: Config) {
         return
       }
       const wId = w.attrs.id
-      const aInfo = `${wId}&${groupId}`
-      const get = await ctx.cache.get('YZC', aInfo)
-      const get2 = await ctx.cache.get('YZC', userId)
+      const info = `${userId}@${groupId}`
+      const get = await ctx.cache.get('YZC', info)
+      const b = new Set(get)
 
       // 各种byd判断
-      if (!get2) {
+      if (!get) {
         await session.send('没有人向你求婚哦')
-        /*console.info(get2)
-        console.info(userId)*/
         return
       }
-      if (!get) {
+      if (!b.has(wId)) {
         await session.send('ta还没有向你求婚哦')
         return
       }
       const get3 = await ctx.database.get('yuuzy_wife', { wife: userId, groupId: groupId })
       if (get3.length > 0) {
         await session.send('你已经是别人的老婆了，不能接受求婚。')
-        await ctx.cache.delete('YZC', aInfo)
-        await ctx.cache.delete('YZC', userId)
+        await ctx.cache.delete('YZC', info)
         return
       }
 
       // 正式处理结婚
       await ctx.monetary.gain(uid, Math.floor(cfg.costP * 0.8), currency)
       await ctx.database.create('yuuzy_wife', { userId: wId, groupId: groupId, wife: userId })
-      await ctx.cache.delete('YZC', aInfo)
-      await ctx.cache.delete('YZC', userId)
+      await ctx.cache.delete('YZC', info)
       await session.send([
         h('at', { id: userId}),
         ' 你和',
@@ -387,6 +390,7 @@ export async function apply(ctx: Context, cfg: Config) {
     })
 
     ctx.command('求婚.拒绝 <who>', '拒绝某人的求婚')
+    .alias('拒绝')
     .action(async ({ session }, who) => {
       if (!session.onebot || session.subtype !== 'group') {
         await session.send('请在OneBot平台的群聊内使用。')
@@ -402,44 +406,71 @@ export async function apply(ctx: Context, cfg: Config) {
         return
       }
       const wId = w.attrs.id
-      const aInfo = `${wId}&${groupId}`
-      const get = await ctx.cache.get('YZC', aInfo)
+      const info = `${userId}@${groupId}`
+      const get = await ctx.cache.get('YZC', info)
 
       // 各种byd判断
       if (!get) {
         await session.send('没有人向你求婚哦')
         return
       }
-      await ctx.cache.delete('YZC', aInfo)
-      await ctx.cache.delete('YZC', userId)
+      const b = new Set(get)
+      if (!b.has(wId)) {
+        await session.send('ta还没有向你求婚哦')
+        return
+      }
+      
+      let set = get
+      set.splice(set.findIndex(item => item === wId), 1)
+      if (set.length === 0) {
+        await ctx.cache.delete('YZC', info)
+      }else await ctx.cache.set('YZC', info, set, cfg.PwaitTime)
       await session.send([
         h('at', { id: wId}),
         ' 你的求婚被拒绝了！'
       ].join(''))
     })
 
-    ctx.command('求婚.取消', '取消求婚')
+    ctx.command('求婚.取消 <who>', '取消对某人的求婚')
+    .alias('取消求婚')
     .userFields(['id'])
-    .action(async ({ session }) => {
+    .action(async ( { session }, who ) => {
       if (!session.onebot || session.subtype !== 'group') {
         await session.send('请在OneBot平台的群聊内使用。')
         return
       }
 
-      // 获取各种byd信息
-      const uid = session.user.id
-      const userId = session.userId
-      const groupId = session.channelId
-      const aInfo = `${userId}&${groupId}`
-      const get = await ctx.cache.get('YZC', aInfo)
-
-      // 各种byd判断
-      if (!get) {
-        await session.send('你还没有向人求婚哦')
+      if (!who) {
+        await session.send('ERROR: 请传入正确参数\n参数需为 @某人')
         return
       }
-      await ctx.cache.delete('YZC', aInfo)
-      await ctx.cache.delete('YZC', get)
+
+      // 获取各种byd信息
+      const uid = session.user.id
+      const p = h.parse(who)[0]
+      if (!p || p.type !== 'at' || !p.attrs.id) {
+        await session.send('ERROR: 请传入正确参数\n参数需为 @某人')
+        return
+      }
+      const pId = p.attrs.id
+      const userId = session.userId
+      const groupId = session.channelId
+      const info = `${pId}@${groupId}`
+      const get = await ctx.cache.get('YZC', info)
+      const b = new Set(get)
+
+      // 各种byd判断
+      if (!b.has(userId)) {
+        await session.send('你还没有向ta求婚哦')
+        return
+      }
+      // 正式处理取消求婚
+      /*await ctx.cache.delete('YZC', aInfo)
+      await ctx.cache.delete('YZC', get)*/
+      let set = get
+      set.splice(set.findIndex(item => item === userId), 1)
+      if (set.length === 0) await ctx.cache.delete('YZC', info)
+      else await ctx.cache.set('YZC', info, set, cfg.PwaitTime)
       await session.send([
         h('at', { id: userId}),
         ' 你的求婚已取消。'
@@ -449,17 +480,16 @@ export async function apply(ctx: Context, cfg: Config) {
     })
   }
 
-  // Debug
-  /*ctx.command('debug', '调试指令')
+  ctx.command('debug', '调试指令')
   .userFields(['id'])
   .action( async ({session}) => {
-    await ctx.cache.set('YZC', 't', 't1', 100000)
-    await ctx.cache.set('YZC', 't', 't2', 100000)
-    await ctx.cache.set('YZC', 't', 't3', 100000)
-    await ctx.cache.set('YZC', 't', 't4', 100000)
-    const g = await ctx.cache.get('YZC', 't')
-    console.log(g)
-  })*/
+    /*let arr = ['514','1919','810']
+    arr.push('114514')
+    console.log(arr)
+    const set = new Set(arr)
+    if (set.has('114')) console.log('yes')*/
+    await ctx.monetary.gain(session.user.id, 100000, 'default')
+  })
 
   // 定时清空数据库
   if (cfg.database) {
