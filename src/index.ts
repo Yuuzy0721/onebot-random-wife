@@ -133,10 +133,10 @@ export async function apply(ctx: Context, cfg: Config) {
             var wife = members[randomIndex]
             i++
             if (i === 10) {
-              await session.send('ERROR: 循环次数过多\n请勿将全部群成员加入黑名单!')
+              await session.send('ERROR: 循环次数过多\n请勿将全部群成员加入黑名单!\n也有可能是群成员过少')
               return
             }
-          } while (wife.user_id.toString() === session.userId || blacklist.has(wife.user_id.toString()))
+          } while (wife.user_id.toString() === session.userId || blacklist.has(wife.user_id.toString()) || (await ctx.database.get('yuuzy_wife', { groupId: groupId, wife: wife.user_id.toString() })).length > 0)
           let wifeId = wife.user_id.toString()
 
           // 获取头像
@@ -161,7 +161,7 @@ export async function apply(ctx: Context, cfg: Config) {
                 h('image', { src: touxiang, caches: true })
               ])
             }
-          } else if (cfg.database) {       // 意义不明
+          } else {
             let get = await ctx.database.get('yuuzy_wife', { userId: session.userId, groupId: groupId })
             if (get.length > 0) {
               wifeId = get[0].wife
@@ -191,7 +191,7 @@ export async function apply(ctx: Context, cfg: Config) {
                 ])
                 if (!cfg.monetary) return
                 // 添加货币
-                ctx.monetary.gain(uid, add, currency)
+                await ctx.monetary.gain(uid, add, currency)
                 await session.send(`你获得了${add}个货币。`)
               } else {
                 await session.send([
@@ -202,7 +202,7 @@ export async function apply(ctx: Context, cfg: Config) {
                 ])
                 if (!cfg.monetary) return
                 // 添加货币
-                ctx.monetary.gain(uid, add, currency)
+                await ctx.monetary.gain(uid, add, currency)
                 await session.send(`你获得了${add}个货币。`)
               }
             }
@@ -290,6 +290,10 @@ export async function apply(ctx: Context, cfg: Config) {
         return
       }
       if (get.length > 0) {
+        if (get[0].wife === pId) {
+          await session.send('ta已经是你的老婆啦！')
+          return
+        }
         await session.send('你已经有老婆了，不能再求婚了！')
         return
       }
@@ -465,8 +469,6 @@ export async function apply(ctx: Context, cfg: Config) {
         return
       }
       // 正式处理取消求婚
-      /*await ctx.cache.delete('YZC', aInfo)
-      await ctx.cache.delete('YZC', get)*/
       let set = get
       set.splice(set.findIndex(item => item === userId), 1)
       if (set.length === 0) await ctx.cache.delete('YZC', info)
@@ -475,21 +477,73 @@ export async function apply(ctx: Context, cfg: Config) {
         h('at', { id: userId}),
         ' 你的求婚已取消。'
       ].join(''))
-      await ctx.monetary.gain(uid, Math.floor(cfg.costP * 0.6), currency)
+      await ctx.monetary.gain(uid, Math.floor(cfg.costP * 0.6), currency) 
       await session.send(`已返还${Math.floor(cfg.costP * 0.6)}个货币。`)
+    })
+    
+    // 求婚列表
+    ctx.command('求婚.列表 [who]', '查看谁在向你求婚or有谁在向谁求婚')
+    .alias('求婚列表')
+    .action(async ({ session }, who) => {
+      if (!session.onebot || session.subtype !== 'group') {
+        await session.send('请在OneBot平台的群聊内使用。')
+        return
+      }
+      const groupId = session.channelId
+      const userId = session.userId
+      if (who) {
+        const w = h.parse(who)[0]
+        if (!w || w.type !== 'at' || !w.attrs.id) {
+          await session.send('ERROR: 请传入正确参数\n参数需为 @某人')
+          return
+        }
+        const wId = w.attrs.id
+        const info = `${wId}@${groupId}`
+        const get = await ctx.cache.get('YZC', info)
+        if (get === undefined) {
+          await session.send('还没有人向ta求婚哦')
+          return
+        }
+        const people = get.map((id) => {
+          return h('at', { id: id })
+        }).join('\n')
+        console.log(people)
+        await session.send([
+          h('at', { id: userId }),
+          ' 有以下人向ta求婚：\n',
+          people,
+        ].join(''))
+        return
+      }
+      const info = `${userId}@${groupId}`
+      const get = await ctx.cache.get('YZC', info)
+      if (get === undefined) {
+        await session.send('还没有人向你求婚哦')
+        return
+      }
+      const people = get.map((id) => {
+        return h('at', { id: id })
+      }).join('\n')
+      console.log(people)
+      await session.send([
+        h('at', { id: userId}),
+        ' 你有以下人向你求婚：\n',
+        people,
+        '\n使用 求婚.拒绝 @某人 来拒绝某人的求婚',
+        '\n使用 求婚.同意 @某人 来同意某人的求婚'
+      ].join(''))
     })
   }
 
-  ctx.command('debug', '调试指令')
+  /*ctx.command('debug', '调试指令')
   .userFields(['id'])
   .action( async ({session}) => {
-    /*let arr = ['514','1919','810']
-    arr.push('114514')
-    console.log(arr)
-    const set = new Set(arr)
-    if (set.has('114')) console.log('yes')*/
-    await ctx.monetary.gain(session.user.id, 100000, 'default')
-  })
+    let arr = ['a','b','c','d']
+    let map = arr.map((item) => {
+      return item
+    }).join('\n')
+    console.log(h('text', map, h.at({id: session.userId})))
+  })*/
 
   // 定时清空数据库
   if (cfg.database) {
