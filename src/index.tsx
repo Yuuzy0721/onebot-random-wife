@@ -126,6 +126,13 @@ export async function apply(ctx: Context, cfg: Config) {
           let groupId = session.channelId       // 群号
           let members = await session.onebot.getGroupMemberList(groupId)        // 成员
 
+          const NoNTR = (async (input: string) => {
+            if (!cfg.database) return false
+            const g = await ctx.database.get('yuuzy_wife', { wife: input, groupId: groupId })
+            if (g.length > 0) return true
+            else return false
+          })
+
           let i = 0
           do {
             //  随机成员
@@ -133,10 +140,10 @@ export async function apply(ctx: Context, cfg: Config) {
             var wife = members[randomIndex]
             i++
             if (i === 10) {
-              await session.send('ERROR: 循环次数过多\n请勿将全部群成员加入黑名单!\n也有可能是群成员过少')
+              await session.send('ERROR: 循环次数过多\n请勿将全部群成员加入黑名单!\n也有可能是群成员过少，快拐点回来吧（划去）')
               return
             }
-          } while (wife.user_id.toString() === session.userId || blacklist.has(wife.user_id.toString()) || (await ctx.database.get('yuuzy_wife', { groupId: groupId, wife: wife.user_id.toString() })).length > 0)
+          } while ( wife.user_id.toString() === session.userId || blacklist.has(wife.user_id.toString()) || await NoNTR(wife.user_id.toString()) )
           let wifeId = wife.user_id.toString()
 
           // 获取头像
@@ -506,11 +513,12 @@ export async function apply(ctx: Context, cfg: Config) {
         }
         const people = get.map((id) => {
           return h('at', { id: id })
-        }).join('\n')
-        console.log(people)
+        }).join(<br/>)
+        // console.log(people)
         await session.send([
           h('at', { id: userId }),
-          ' 有以下人向ta求婚：\n',
+          ' 有以下人向ta求婚： ',
+          <br/>,
           people,
         ].join(''))
         return
@@ -523,14 +531,16 @@ export async function apply(ctx: Context, cfg: Config) {
       }
       const people = get.map((id) => {
         return h('at', { id: id })
-      }).join('\n')
+      }).join(<br/>)
       console.log(people)
       await session.send([
         h('at', { id: userId}),
-        ' 你有以下人向你求婚：\n',
+        ' 你有以下人向你求婚：<br/>',
         people,
-        '\n使用 求婚.拒绝 @某人 来拒绝某人的求婚',
-        '\n使用 求婚.同意 @某人 来同意某人的求婚'
+        <br/>,
+        '使用 求婚.拒绝 @某人 来拒绝某人的求婚',
+        <br/>,
+        '使用 求婚.同意 @某人 来同意某人的求婚'
       ].join(''))
     })
   }
