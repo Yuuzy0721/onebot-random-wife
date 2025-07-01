@@ -7,8 +7,6 @@ import { } from '@koishijs/cache'
 export const name = 'onebot-random-wife'
 
 export const usage = `
-<p style="font-size: 24px;"><strong>由于monetary相关内容发生变动，若你从<b>0.1.6</b>版本以下更新而来，请将数据库<b>monetary</b>表中uid为QQ号的内容删除</strong></p>
-
 ## [点我查看更新日志](https://forum.koishi.xyz/t/topic/10767/)
 `
 
@@ -563,4 +561,9 @@ export async function apply(ctx: Context, cfg: Config) {
       logger.info('数据库清空完成！')
     })
   }
+
+  ctx.on('dispose', async() => {
+    await ctx.database.remove('yuuzy_wife', {})
+    await ctx.cache.clear('YZC')
+  })
 }
