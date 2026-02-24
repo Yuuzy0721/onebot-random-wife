@@ -38,7 +38,7 @@ export const Config: Schema<Config> = Schema.intersect([
     blacklist: Schema.array(String).description('黑名单，黑名单内的用户不会作为老婆被抽到（填写QQ号）（默认屏蔽Q群管家）').default(["2854196310"]),
     propose: Schema.boolean().default(false).description('是否启用求婚功能（需要先启用货币系统）').experimental(),
     PwaitTime: Schema.number().default(180000).min(10000).max(36000000).description('求婚等待时间/ms').experimental(),
-    rape: Schema.boolean().default(false).description('是否启用强娶功能(未实现)').experimental()
+    rape: Schema.boolean().default(false).description('是否启用强娶功能').experimental()
   }).description('基础配置'),
   Schema.object({
     database: Schema.boolean().default(true).description('是否启用数据库限制每日只能获取一个老婆').disabled().deprecated().hidden(),
@@ -577,15 +577,20 @@ export async function apply(ctx: Context, cfg: Config) {
         return
       }
 
-      const wId = w.attrs.id
+      const wId: string = (w.attrs.id).toString()
 
-      if (userId === wId) {
+      if (userId == wId) {
         await session.send('你不能强娶自己！')
         return
       }
 
       if (!NoNTR(wId, guildId)) {
         await session.send('ta已经是别人的老婆了！')
+        return
+      }
+
+      if ((await ctx.database.get('yuuzy_wife', { userId: userId, groupId: guildId })).length > 0) {
+        await session.send('你已经有老婆了，不能再强娶了！')
         return
       }
 
